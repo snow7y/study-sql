@@ -12,7 +12,7 @@ python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.7.1"
-mypy = "^1.12.1"
+mypy = "^1.15.0"
 
 [build-system]
 requires = ["poetry-core"]
