@@ -2,7 +2,7 @@
   "name": "poetry-template-dev",
   "dockerComposeFile": ["../docker-compose.yml"],
   "service": "app",
-  "workspaceFolder": "/app",
+  "workspaceFolder": "/workspaces/study-sql",
 
   "remoteUser": "appuser",
   "customizations": {

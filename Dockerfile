@@ -6,6 +6,7 @@ build-essential \
 git \
 curl \
 sudo \
+postgresql-client \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
 
@@ -25,11 +26,11 @@ ENV HOME=/home/appuser
 USER appuser
 
 
-WORKDIR /app
+WORKDIR /workspaces
 
 # poetryのインストール
 RUN pip install --upgrade pip && pip install poetry 
 ENV PATH="/home/appuser/.local/bin:$PATH"
 
 # アプリケーションコードをコピー
-COPY --chown=appuser:appgroup . /app
+COPY --chown=appuser:appgroup . /workspaces

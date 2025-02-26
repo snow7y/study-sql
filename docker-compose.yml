@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   app:
+    container_name: study-sql-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,5 +9,28 @@ services:
         - USER_ID=1000
         - GROUP_ID=1000
     volumes:
-      - .:/app
+      - .:/src
+    depends_on:
+      - postgres
     command: sleep infinity
+    env_file:
+      - .env
+
+  postgres:
+    container_name: study-sql-postgres
+    image: postgres:latest
+    volumes:
+      - ./db/postgres/data:/var/lib/postgresql/data
+      - ./db/postgres/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+      TZ: "Asia/Tokyo"
+    ports:
+      - "5432:5432"
+    entrypoint: >
+      bash -c "
+      chown -R postgres:postgres /var/lib/postgresql/data &&
+      docker-entrypoint.sh postgres
+      "
