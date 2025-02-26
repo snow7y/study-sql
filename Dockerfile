@@ -10,7 +10,7 @@ postgresql-client \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
 
-RUN git config --global --add safe.directory /app
+RUN git config --global --add safe.directory /workspaces
 
 
 # ユーザーIDとグループIDをビルド時の引数として受け取る
