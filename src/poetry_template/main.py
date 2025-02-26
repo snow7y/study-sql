@@ -170,6 +170,52 @@ class QueryView:
 
         self.query_result_text = ft.Text("クエリ実行結果がここに表示されます")
 
+        self.sample_buttons = ft.Column(
+            [
+                ft.Text("サンプルクエリ"),
+                ft.Row(
+                    [
+                        ft.ElevatedButton(
+                            "全件検索",
+                            on_click=lambda e: self.set_sample_query("SELECT * FROM documents"),
+                        ),
+                        ft.ElevatedButton(
+                            "タイトル検索",
+                            on_click=lambda e: self.set_sample_query(
+                                "SELECT * FROM documents WHERE title LIKE '%検索語%'"
+                            ),
+                        ),
+                    ],
+                    wrap=True,
+                ),
+                ft.Row(
+                    [
+                        ft.ElevatedButton(
+                            "新規追加",
+                            on_click=lambda e: self.set_sample_query(
+                                "INSERT INTO documents (title, content) VALUES ('新規タイトル', '新規内容')"
+                            ),
+                        ),
+                        ft.ElevatedButton(
+                            "更新",
+                            on_click=lambda e: self.set_sample_query(
+                                "UPDATE documents SET title = '更新タイトル', content = '更新内容' WHERE document_id = 1" # noqa
+                            ),
+                        ),
+                        ft.ElevatedButton(
+                            "削除",
+                            on_click=lambda e: self.set_sample_query("DELETE FROM documents WHERE document_id = 1"),
+                        ),
+                    ]
+                ),
+            ],
+        )
+
+    def set_sample_query(self, query: str) -> None:
+        """サンプルクエリをセットする"""
+        self.sql_query_field.value = query
+        self.parent.page.update()
+
     def get_view(self, page: ft.Page) -> ft.View:
         """SQLクエリ実行画面のビューを返す"""
         return ft.View(
@@ -192,6 +238,8 @@ class QueryView:
                             ft.Container(
                                 ft.Column(
                                     [
+                                        self.sample_buttons,
+                                        ft.Divider(),
                                         self.sql_query_field,
                                         ft.ElevatedButton(
                                             "実行", icon=ft.Icons.PLAY_ARROW, on_click=self.execute_custom_query
@@ -216,6 +264,24 @@ class QueryView:
             scroll=ft.ScrollMode.AUTO,
         )
 
+    def _refresh_result_table(self, results: list[tuple]) -> str:
+        """クエリ結果のテーブルを更新する"""
+        if len(results) > 0:
+            # カラム名を取得（ここでは仮にインデックスを使用）
+            columns = [f"列{i+1}" for i in range(len(results[0]))]
+            self.result_table.columns = [ft.DataColumn(ft.Text(col)) for col in columns]
+
+            self.result_table.rows = [
+                ft.DataRow(cells=[ft.DataCell(ft.Text(str(cell))) for cell in row]) for row in results
+            ]
+            result_str = f"{len(results)}行が選択されました"
+        else:
+            self.result_table.rows = []
+            result_str = "0行が選択されました"
+
+        return result_str
+
+
     def execute_custom_query(self, e: ft.ControlEvent) -> None:
         """SQLクエリを実行し結果を表示する"""
         page: ft.Page = self.parent.page
@@ -233,24 +299,34 @@ class QueryView:
                 results = self.parent.db_handler.fetch_query(query)
 
                 # 結果表示用のテーブル作成
-                if results and len(results) > 0:
-                    # カラム名を取得（ここでは仮にインデックスを使用）
-                    columns = [f"列{i+1}" for i in range(len(results[0]))]
+                # if results and len(results) > 0:
+                #     # カラム名を取得（ここでは仮にインデックスを使用）
+                #     columns = [f"列{i+1}" for i in range(len(results[0]))]
 
-                    self.result_table.columns = [ft.DataColumn(ft.Text(col)) for col in columns]
+                #     self.result_table.columns = [ft.DataColumn(ft.Text(col)) for col in columns]
 
-                    self.result_table.rows = [
-                        ft.DataRow(cells=[ft.DataCell(ft.Text(str(cell))) for cell in row]) for row in results
-                    ]
+                #     self.result_table.rows = [
+                #         ft.DataRow(cells=[ft.DataCell(ft.Text(str(cell))) for cell in row]) for row in results
+                #     ]
 
-                    self.query_result_text.value = f"{len(results)}行が選択されました"
+                #     self.query_result_text.value = f"{len(results)}行が選択されました"
+                # else:
+                #     self.result_table.rows = []
+                #     self.query_result_text.value = "0行が選択されました"
+                if results:
+                    res = self._refresh_result_table(results)
+                    self.query_result_text.value = res
                 else:
                     self.result_table.rows = []
                     self.query_result_text.value = "0行が選択されました"
             else:
                 self.parent.db_handler.execute_query(query)
                 self.query_result_text.value = "クエリが実行されました"
-                self.result_table.rows = []
+                results = self.parent.db_handler.fetch_query("SELECT * FROM documents")
+                if results:
+                    self._refresh_result_table(results)
+                else:
+                    self.result_table.rows = []
 
         except Exception as err:
             self.query_result_text.value = f"エラー: {str(err)}"
@@ -530,7 +606,7 @@ class DatabaseGUI:
 # アプリ起動
 def main() -> None:
     """アプリケーションのエントリーポイント関数"""
-    ft.app(target=DatabaseGUI().main)
+    ft.app(target=lambda page: DatabaseGUI().main(page))
 
 
 if __name__ == "__main__":
