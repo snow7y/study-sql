@@ -17,25 +17,61 @@ class DocumentsView:
 
     def __init__(self, parent: "DatabaseGUI"):
         self.parent = parent
+        # ソート状態の管理
+        self.sort_column_index = 0
+        self.sort_ascending = True
+
+        # 検索機能用コンポーネント
+        self.search_field = ft.TextField(
+            label="検索",
+            hint_text="タイトルまたは内容を検索",
+            prefix_icon=ft.Icons.SEARCH,
+            on_change=self.on_search_changed,
+            expand=True,
+        )
+        self.search_options = ft.PopupMenuButton(
+            icon=ft.Icons.FILTER_ALT,
+            tooltip="検索オプション",
+            items=[
+                ft.PopupMenuItem(text="タイトルのみ", on_click=lambda e: self.set_search_mode("title")),
+                ft.PopupMenuItem(text="内容のみ", on_click=lambda e: self.set_search_mode("content")),
+                ft.PopupMenuItem(text="タイトルと内容", on_click=lambda e: self.set_search_mode("both")),
+            ],
+        )
+        self.search_mode = "both" # 検索モード(default: both)
+
         # ドキュメントテーブルの定義
         self.documents_table = ft.DataTable(
             columns=[
-                ft.DataColumn(ft.Text("ID")),
-                ft.DataColumn(ft.Text("タイトル")),
-                ft.DataColumn(ft.Text("内容")),
-                ft.DataColumn(ft.Text("作成日時")),
-                ft.DataColumn(ft.Text("更新日時")),
+                ft.DataColumn(ft.Text("ID"), on_sort=self.on_sort_changed),
+                ft.DataColumn(ft.Text("タイトル"), on_sort=self.on_sort_changed),
+                ft.DataColumn(ft.Text("内容"), on_sort=self.on_sort_changed),
+                ft.DataColumn(ft.Text("作成日時"), on_sort=self.on_sort_changed),
+                ft.DataColumn(ft.Text("更新日時"), on_sort=self.on_sort_changed),
             ],
             rows=[],
             border=ft.border.all(1, ft.Colors.OUTLINE),
             border_radius=10,
             vertical_lines=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
             horizontal_lines=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
-            sort_column_index=0,
-            sort_ascending=True,
+            sort_column_index=self.sort_column_index,
+            sort_ascending=self.sort_ascending,
             heading_row_height=70,
             data_row_min_height=60,
         )
+
+    def on_sort_changed(self, e: ft.ControlEvent) -> None:
+        self.sort_column_index = e.column_index
+        self.sort_ascending = e.ascending
+        self.parent.load_documents()
+
+    def on_search_changed(self, e: ft.ControlEvent) -> None:
+        self.parent.load_documents(search_text=self.search_field.value)
+
+    def set_search_mode(self, mode: str) -> None:
+        self.search_mode = mode
+        if self.search_field.value:
+            self.parent.load_documents(search_text=self.search_field.value)
 
     def get_view(self, page: ft.Page) -> ft.View:
         """ドキュメント一覧画面のビューを返す"""
@@ -62,6 +98,13 @@ class DocumentsView:
                 ft.Container(
                     ft.Column(
                         [
+                            ft.Row(
+                                [
+                                    self.search_field,
+                                    self.search_options,
+                                ],
+                                spacing=10,
+                            ),
                             ft.Container(
                                 self.documents_table,
                                 padding=20,
@@ -298,21 +341,6 @@ class QueryView:
             if is_select:
                 results = self.parent.db_handler.fetch_query(query)
 
-                # 結果表示用のテーブル作成
-                # if results and len(results) > 0:
-                #     # カラム名を取得（ここでは仮にインデックスを使用）
-                #     columns = [f"列{i+1}" for i in range(len(results[0]))]
-
-                #     self.result_table.columns = [ft.DataColumn(ft.Text(col)) for col in columns]
-
-                #     self.result_table.rows = [
-                #         ft.DataRow(cells=[ft.DataCell(ft.Text(str(cell))) for cell in row]) for row in results
-                #     ]
-
-                #     self.query_result_text.value = f"{len(results)}行が選択されました"
-                # else:
-                #     self.result_table.rows = []
-                #     self.query_result_text.value = "0行が選択されました"
                 if results:
                     res = self._refresh_result_table(results)
                     self.query_result_text.value = res
@@ -550,7 +578,7 @@ class DatabaseGUI:
         page.on_route_change = route_change
         page.go("/connect")
 
-    def load_documents(self) -> None:
+    def load_documents(self, search_text: str = "") -> None:
         """ドキュメント一覧をデータベースから読み込む"""
 
         def truncate_text(text: str, length: int = 50) -> str:
@@ -559,7 +587,39 @@ class DatabaseGUI:
 
         try:
             if self.db_handler.is_connected():
-                self.current_documents = self.db_handler.fetch_query("SELECT * FROM documents")
+                # データベースからドキュメントを取得
+                query = "SELECT * FROM documents"
+                params: tuple = ()
+
+                if search_text:
+                    search_mode = self.documents_view.search_mode
+                    search_param = f"%{search_text}%"
+
+                    if search_mode == "title":
+                        query += " WHERE title LIKE %s"
+                        params = (search_param,)
+                    elif search_mode == "content":
+                        query += " WHERE content LIKE %s"
+                        params = (search_param,)
+                    else: # both
+                        query += " WHERE title LIKE %s OR content LIKE %s"
+                        params = (search_param, search_param)
+
+                # クエリ実行
+                self.current_documents = (
+                    self.db_handler.fetch_query(query, params) if params else self.db_handler.fetch_query(query)
+                )
+
+                # ソート処理
+                sort_index = self.documents_view.sort_column_index
+                sort_ascending = self.documents_view.sort_ascending
+
+                # ソート列に応じたソート処理（None値を考慮）
+                self.current_documents.sort(
+                    key=lambda doc: (doc[sort_index] is None, doc[sort_index]), reverse=not sort_ascending
+                )
+
+                # テーブル表示更新
                 self.documents_view.documents_table.rows.clear()
                 for doc in self.current_documents:
                     self.documents_view.documents_table.rows.append(
@@ -574,7 +634,14 @@ class DatabaseGUI:
                             on_select_changed=lambda e, doc_id=doc[0]: self.dialog_manager.show_document_detail(doc_id),
                         )
                     )
-                self.status_text.value = f"{len(self.current_documents)} ドキュメントが読み込まれました"
+                # ソート状態をテーブルに反映
+                self.documents_view.documents_table.sort_column_index = sort_index
+                self.documents_view.documents_table.sort_ascending = sort_ascending
+
+                if search_text:
+                    self.status_text.value = f"{len(self.current_documents)} 件のドキュメントが見つかりました"
+                else:
+                    self.status_text.value = f"{len(self.current_documents)} ドキュメントが読み込まれました"
             else:
                 self.status_text.value = "データベースに接続されていません"
         except Exception as err:
