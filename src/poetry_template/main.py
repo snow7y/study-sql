@@ -45,7 +45,7 @@ class DocumentsView:
             columns=[
                 ft.DataColumn(ft.Text("ID"), on_sort=self.on_sort_changed),
                 ft.DataColumn(ft.Text("タイトル"), on_sort=self.on_sort_changed),
-                ft.DataColumn(ft.Text("内容"), on_sort=self.on_sort_changed),
+                ft.DataColumn(ft.Text("内容", expand=True), on_sort=self.on_sort_changed),
                 ft.DataColumn(ft.Text("作成日時"), on_sort=self.on_sort_changed),
                 ft.DataColumn(ft.Text("更新日時"), on_sort=self.on_sort_changed),
             ],
@@ -58,6 +58,7 @@ class DocumentsView:
             sort_ascending=self.sort_ascending,
             heading_row_height=70,
             data_row_min_height=60,
+            expand=True,
         )
 
     def on_sort_changed(self, e: ft.ControlEvent) -> None:
@@ -627,7 +628,7 @@ class DatabaseGUI:
                             cells=[
                                 ft.DataCell(ft.Text(str(doc[0]))),  # ID
                                 ft.DataCell(ft.Text(truncate_text(doc[1], MAX_CONTENT_LENGTH))),  # Title
-                                ft.DataCell(ft.Text(truncate_text(doc[2], MAX_CONTENT_LENGTH))),  # Content
+                                ft.DataCell(ft.Text(truncate_text(doc[2], MAX_CONTENT_LENGTH), expand=True)),  # Content
                                 ft.DataCell(ft.Text(str(doc[3]))),  # Created
                                 ft.DataCell(ft.Text(str(doc[4]))),  # Updated
                             ],
