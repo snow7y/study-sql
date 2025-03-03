@@ -10,7 +10,7 @@ packages = [{include = "poetry_template", from = "src"}]
 python = "^3.12"
 flet = {extras = ["all"], version = "^0.26.0"}
 psycopg2-binary = "^2.9.10"
-psycopg-pool = "^3.2.4"
+psycopg-pool = "^3.2.6"
 
 
 [tool.poetry.group.dev.dependencies]
