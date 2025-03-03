@@ -8,7 +8,7 @@ packages = [{include = "poetry_template", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-flet = {extras = ["all"], version = "^0.26.0"}
+flet = {extras = ["all"], version = "^0.27.4"}
 psycopg2-binary = "^2.9.10"
 psycopg-pool = "^3.2.4"
 
